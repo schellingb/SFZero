@@ -258,11 +258,71 @@ void SF2Reader::addGeneratorToRegion(
 		case SF2Generator::startAddrsCoarseOffset:
 			region->offset += amount->shortAmount * 32768;
 			break;
+		case SF2Generator::modLfoToPitch:
+			region->modLfoToPitch = amount->shortAmount;
+			break;
+		case SF2Generator::vibLfoToPitch:
+			region->vibLfoToPitch = amount->shortAmount;
+			break;
+		case SF2Generator::modEnvToPitch:
+			region->modEnvToPitch = amount->shortAmount;
+			break;
+		case SF2Generator::initialFilterFc:
+			region->initialFilterFc = amount->shortAmount;
+			break;
+		case SF2Generator::initialFilterQ:
+			region->initialFilterQ = amount->shortAmount;
+			break;
+		case SF2Generator::modLfoToFilterFc:
+			region->modLfoToFilterFc = amount->shortAmount;
+			break;
+		case SF2Generator::modEnvToFilterFc:
+			region->modEnvToFilterFc = amount->shortAmount;
+			break;
 		case SF2Generator::endAddrsCoarseOffset:
 			region->end += amount->shortAmount * 32768;
 			break;
+		case SF2Generator::modLfoToVolume:
+			region->modLfoToVolume = amount->shortAmount;
+			break;
 		case SF2Generator::pan:
 			region->pan = amount->shortAmount * (2.0f / 10.0f);
+			break;
+		case SF2Generator::delayModLFO:
+			region->delayModLFO = amount->shortAmount;
+			break;
+		case SF2Generator::freqModLFO:
+			region->freqModLFO = amount->shortAmount;
+			break;
+		case SF2Generator::delayVibLFO:
+			region->delayVibLFO = amount->shortAmount;
+			break;
+		case SF2Generator::freqVibLFO:
+			region->freqVibLFO = amount->shortAmount;
+			break;
+		case SF2Generator::delayModEnv:
+			region->modeg.delay = amount->shortAmount;
+			break;
+		case SF2Generator::attackModEnv:
+			region->modeg.attack = amount->shortAmount;
+			break;
+		case SF2Generator::holdModEnv:
+			region->modeg.hold = amount->shortAmount;
+			break;
+		case SF2Generator::decayModEnv:
+			region->modeg.decay = amount->shortAmount;
+			break;
+		case SF2Generator::sustainModEnv:
+			region->modeg.sustain = amount->shortAmount;
+			break;
+		case SF2Generator::releaseModEnv:
+			region->modeg.release = amount->shortAmount;
+			break;
+		case SF2Generator::keynumToModEnvHold:
+			region->modeg.keynumToHold = amount->shortAmount;
+			break;
+		case SF2Generator::keynumToModEnvDecay:
+			region->modeg.keynumToDecay = amount->shortAmount;
 			break;
 		case SF2Generator::delayVolEnv:
 			region->ampeg.delay = amount->shortAmount;
@@ -281,6 +341,12 @@ void SF2Reader::addGeneratorToRegion(
 			break;
 		case SF2Generator::releaseVolEnv:
 			region->ampeg.release = amount->shortAmount;
+			break;
+		case SF2Generator::keynumToVolEnvHold:
+			region->ampeg.keynumToHold = amount->shortAmount;
+			break;
+		case SF2Generator::keynumToVolEnvDecay:
+			region->ampeg.keynumToDecay = amount->shortAmount;
 			break;
 		case SF2Generator::keyRange:
 			region->lokey = amount->range.lo;
@@ -328,34 +394,12 @@ void SF2Reader::addGeneratorToRegion(
 			// Ignore.
 			break;
 
-		case SF2Generator::modLfoToPitch:
-		case SF2Generator::vibLfoToPitch:
-		case SF2Generator::modEnvToPitch:
-		case SF2Generator::initialFilterFc:
-		case SF2Generator::initialFilterQ:
-		case SF2Generator::modLfoToFilterFc:
-		case SF2Generator::modEnvToFilterFc:
-		case SF2Generator::modLfoToVolume:
 		case SF2Generator::unused1:
 		case SF2Generator::chorusEffectsSend:
 		case SF2Generator::reverbEffectsSend:
 		case SF2Generator::unused2:
 		case SF2Generator::unused3:
 		case SF2Generator::unused4:
-		case SF2Generator::delayModLFO:
-		case SF2Generator::freqModLFO:
-		case SF2Generator::delayVibLFO:
-		case SF2Generator::freqVibLFO:
-		case SF2Generator::delayModEnv:
-		case SF2Generator::attackModEnv:
-		case SF2Generator::holdModEnv:
-		case SF2Generator::decayModEnv:
-		case SF2Generator::sustainModEnv:
-		case SF2Generator::releaseModEnv:
-		case SF2Generator::keynumToModEnvHold:
-		case SF2Generator::keynumToModEnvDecay:
-		case SF2Generator::keynumToVolEnvHold:
-		case SF2Generator::keynumToVolEnvDecay:
 		case SF2Generator::instrument:
 			// Only allowed in certain places, where we already special-case it.
 		case SF2Generator::reserved1:
@@ -366,6 +410,7 @@ void SF2Reader::addGeneratorToRegion(
 			// Only allowed in certain places, where we already special-case it.
 		case SF2Generator::reserved3:
 		case SF2Generator::unused5:
+		default:
 			{
 				const SF2Generator* generator = GeneratorFor(genOper);
 				sound->addUnsupportedOpcode(generator->name);

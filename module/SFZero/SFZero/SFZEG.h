@@ -12,11 +12,12 @@ class SFZEG {
 
 		void	setExponentialDecay(bool newExponentialDecay);
 		void	startNote(
-			const SFZEGParameters* parameters, float floatVelocity, float sampleRate,
-			const SFZEGParameters* velMod = 0);
+			const SFZEGParameters* parameters, int midiNoteNumber, float floatVelocity,
+			float sampleRate, const SFZEGParameters* velMod = 0);
 		void	nextSegment();
 		void	noteOff();
 		void	fastRelease();
+		void	update(int numSamples);
 		bool	isDone() { return segment == Done; }
 		bool	isReleasing() { return segment == Release; }
 		int 	segmentIndex() { return (int) segment; }

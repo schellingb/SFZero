@@ -19,11 +19,19 @@ void SFZEG::setExponentialDecay(bool newExponentialDecay)
 
 
 void SFZEG::startNote(
-	const SFZEGParameters* newParameters, float floatVelocity,
-	float newSampleRate,
+	const SFZEGParameters* newParameters, int midiNoteNumber,
+	float floatVelocity, float newSampleRate,
 	const SFZEGParameters* velMod)
 {
 	parameters = *newParameters;
+	if (parameters.keynumToHold) {
+		parameters.hold += parameters.keynumToHold * (60.0f - midiNoteNumber);
+		parameters.hold  = (parameters.hold < -10000.0f ? 0.0f : SFZRegion::timecents2Secs(parameters.hold));
+		}
+	if (parameters.keynumToDecay) {
+		parameters.decay += parameters.keynumToDecay * (60.0f - midiNoteNumber);
+		parameters.decay  = (parameters.decay < -10000.0f ? 0.0f : SFZRegion::timecents2Secs(parameters.decay));
+		}
 	if (velMod) {
 		parameters.delay += floatVelocity * velMod->delay;
 		parameters.attack += floatVelocity * velMod->attack;
@@ -68,6 +76,9 @@ void SFZEG::nextSegment()
 		case Release:
 		default:
 			segment = Done;
+			segmentIsExponential = false;
+			level = slope = 0;
+			samplesUntilNextSegment = 0x7FFFFFF;
 			break;
 		}
 }
@@ -199,6 +210,19 @@ void SFZEG::startRelease()
 		slope = -level / samplesUntilNextSegment;
 		segmentIsExponential = false;
 		}
+}
+
+
+void SFZEG::update(int numSamples)
+{
+	if (slope) {
+		if (segmentIsExponential)
+			level *= powf(slope, (float)numSamples);
+		else
+			level += (slope * numSamples);
+		}
+	if ((samplesUntilNextSegment -= numSamples) < 0)
+		nextSegment();
 }
 
 

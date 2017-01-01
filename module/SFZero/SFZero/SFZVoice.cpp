@@ -9,11 +9,58 @@ using namespace SFZero;
 
 static const float globalGain = -1.0;
 
+#undef M_PI
+#define M_PI 3.14159265358979323846
+
+// The lower this block size is the more accurate the effects are.
+// Increasing the value significantly lowers the CPU usage of the voice rendering.
+// If LFO affects the lowpass filter it can be hearable even as low as 8.
+enum { SFZVOICE_RENDER_EFFECTSAMPLEBLOCK = 64 };
+
+
+void SFZVoice::SFZLowpass::setup(float Fc)
+{
+	// Lowpass filter from http://www.earlevel.com/main/2012/11/26/biquad-c-source-code/
+	double K = tan(M_PI * Fc), KK = K * K;
+	double norm = 1 / (1 + K * QInv + KK);
+	a0 = KK * norm;
+	a1 = 2 * a0;
+	b1 = 2 * (KK - 1) * norm;
+	b2 = (1 - K * QInv + KK) * norm;
+}
+
+
+inline float SFZVoice::SFZLowpass::process(double In, double& z1, double& z2)
+{
+	double Out = In * a0 + z1; z1 = In * a1 + z2 - b1 * Out; z2 = In * a0 - b2 * Out; return (float)Out;
+}
+
+
+void SFZVoice::SFZLFO::setup(float delay, int freqCents, float sampleRate)
+{
+	samplesUntil = (long)(delay * sampleRate);
+	delta = (4.0f * SFZRegion::cents2Hertz((float)freqCents) / sampleRate);
+	level = 0;
+}
+
+
+inline void SFZVoice::SFZLFO::process(int blockSamples)
+{
+	if (samplesUntil > blockSamples)
+		samplesUntil -= blockSamples;
+	else {
+		level += delta * blockSamples;
+		if      (level >  1.0f) { delta = -delta; level =  2.0f - level; }
+		else if (level < -1.0f) { delta = -delta; level = -2.0f - level; }
+		}
+}
+
 
 SFZVoice::SFZVoice()
 	: region(NULL)
 {
 	ampeg.setExponentialDecay(true);
+	modeg.setExponentialDecay(false);
 }
 
 
@@ -59,22 +106,21 @@ void SFZVoice::startNote(
 	calcPitchRatio();
 
 	// Gain.
-	double noteGainDB = globalGain + region->volume;
+	noteGainDB = globalGain + region->volume;
 	// Thanks to <http:://www.drealm.info/sfz/plj-sfz.xhtml> for explaining the
 	// velocity curve in a way that I could understand, although they mean
 	// "log10" when they say "log".
 	double velocityGainDB = -20.0 * log10((127.0 * 127.0) / (velocity * velocity));
 	velocityGainDB *= region->amp_veltrack / 100.0;
-	noteGainDB += velocityGainDB;
-	noteGainLeft = noteGainRight = Decibels::decibelsToGain((float)noteGainDB);
+	noteGainDB += (float)velocityGainDB;
 	// The SFZ spec is silent about the pan curve, but a 3dB pan law seems
 	// common.  This sqrt() curve matches what Dimension LE does; Alchemy Free
 	// seems closer to sin(adjustedPan * pi/2).
 	double adjustedPan = (region->pan + 100.0) / 200.0;
-	noteGainLeft *= (float)sqrt(1.0 - adjustedPan);
-	noteGainRight *= (float)sqrt(adjustedPan);
+	panFactorLeft = (float)sqrt(1.0 - adjustedPan);
+	panFactorRight = (float)sqrt(adjustedPan);
 	ampeg.startNote(
-		&region->ampeg, floatVelocity, getSampleRate(), &region->ampeg_veltrack);
+		&region->ampeg, midiNoteNumber, floatVelocity, getSampleRate(), &region->ampeg_veltrack);
 
 	// Offset/end.
 	sourceSamplePosition = region->offset;
@@ -102,6 +148,20 @@ void SFZVoice::startNote(
 			}
 		}
 	numLoops = 0;
+
+	modeg.startNote(
+		&region->modeg, midiNoteNumber, floatVelocity, getSampleRate(), NULL);
+
+	// Setup lowpass filter.
+	float filterQDB = region->initialFilterQ / 10.0f;
+	lowpass.QInv = 1.0 / pow(10.0, (filterQDB / 20.0));
+	lowpass.Z1Left = lowpass.Z2Left = lowpass.Z1Right = lowpass.Z2Right = 0;
+	lowpass.active = (region->initialFilterFc <= 13500);
+	if (lowpass.active) lowpass.setup(SFZRegion::cents2Hertz((float)region->initialFilterFc) / getSampleRate());
+
+	// Setup LFO filters.
+	modlfo.setup(region->delayModLFO, region->freqModLFO, getSampleRate());
+	viblfo.setup(region->delayVibLFO, region->freqVibLFO, getSampleRate());
 }
 
 
@@ -112,8 +172,10 @@ void SFZVoice::stopNote(float velocity, const bool allowTailOff)
 		return;
 		}
 
-	if (region->loop_mode != SFZRegion::one_shot)
+	if (region->loop_mode != SFZRegion::one_shot) {
 		ampeg.noteOff();
+		modeg.noteOff();
+		}
 	if (region->loop_mode == SFZRegion::loop_sustain) {
 		// Continue playing, but stop looping.
 		loopEnd = loopStart;
@@ -123,16 +185,21 @@ void SFZVoice::stopNote(float velocity, const bool allowTailOff)
 
 void SFZVoice::stopNoteForGroup()
 {
-	if (region->off_mode == SFZRegion::fast)
+	if (region->off_mode == SFZRegion::fast) {
 		ampeg.fastRelease();
-	else
+		modeg.fastRelease();
+		}
+	else {
 		ampeg.noteOff();
+		modeg.noteOff();
+		}
 }
 
 
 void SFZVoice::stopNoteQuick()
 {
 	ampeg.fastRelease();
+	modeg.fastRelease();
 }
 
 
@@ -172,59 +239,103 @@ void SFZVoice::renderNextBlock(
 
 	// Cache some values, to give them at least some chance of ending up in
 	// registers.
-	double tmpSourceSamplePosition = this->sourceSamplePosition;
-	float ampegGain = ampeg.level;
-	float ampegSlope = ampeg.slope;
-	long samplesUntilNextAmpSegment = ampeg.samplesUntilNextSegment;
-	bool ampSegmentIsExponential = ampeg.segmentIsExponential;
-	float tmpLoopStart = (float)this->loopStart;
-	float tmpLoopEnd = (float)this->loopEnd;
-	float tmpSampleEnd = (float)this->sampleEnd;
+	const bool updateModEg       = (region->modEnvToPitch || region->modEnvToFilterFc);
+	const bool updateModLFO      = (modlfo.delta && (region->modLfoToPitch || region->modLfoToFilterFc || region->modLfoToVolume));
+	const bool updateVibLFO      = (viblfo.delta && (region->vibLfoToPitch));
+	const bool dynamicLowpass    = (region->modLfoToFilterFc || region->modEnvToFilterFc);
+	const bool dynamicPitchRatio = (region->modLfoToPitch || region->modEnvToPitch || region->vibLfoToPitch);
+	const bool dynamicGain       = (region->modLfoToVolume != 0);
+	const unsigned long tmpLoopStart = loopStart, tmpLoopEnd = loopEnd;
+	const double tmpSampleEnd = (double)sampleEnd;
+	double tmpSourceSamplePosition = sourceSamplePosition;
+	SFZLowpass tmpLowpass = lowpass;
 
-	while (--numSamples >= 0) {
-		int pos = (int) tmpSourceSamplePosition;
-		float alpha = (float) (tmpSourceSamplePosition - pos);
-		float invAlpha = 1.0f - alpha;
-		int nextPos = pos + 1;
-		if (tmpLoopStart < tmpLoopEnd && nextPos > tmpLoopEnd)
-			nextPos = (int)tmpLoopStart;
+	float tmpSampleRate, tmpInitialFilterFc, tmpModLfoToFilterFc, tmpModEnvToFilterFc;
+	if (dynamicLowpass)
+		tmpSampleRate = getSampleRate(), tmpInitialFilterFc = (float)region->initialFilterFc, tmpModLfoToFilterFc = (float)region->modLfoToFilterFc, tmpModEnvToFilterFc = (float)region->modEnvToFilterFc;
 
-		// Simple linear interpolation.
-		float l = (inL[pos] * invAlpha + inL[nextPos] * alpha);
-		float r = inR ? (inR[pos] * invAlpha + inR[nextPos] * alpha) : l;
+	double pitchRatio;
+	float tmpModLfoToPitch, tmpVibLfoToPitch, tmpModEnvToPitch;
+	if (dynamicPitchRatio)
+		tmpModLfoToPitch = (float)region->modLfoToPitch, tmpVibLfoToPitch = (float)region->vibLfoToPitch, tmpModEnvToPitch = (float)region->modEnvToPitch;
+	else
+		pitchRatio = SFZRegion::timecents2Secs(pitchInputTimecents) * pitchOutputFactor;
 
-		float gainLeft = noteGainLeft * ampegGain;
-		float gainRight = noteGainRight * ampegGain;
-		l *= gainLeft;
-		r *= gainRight;
-		// Shouldn't we dither here?
+	float noteGain, tmpModLfoToVolume;
+	if (dynamicGain)
+		tmpModLfoToVolume = (float)region->modLfoToVolume * 0.1f;
+	else
+		noteGain = Decibels::decibelsToGain(noteGainDB);
 
-		if (outR) {
-			*outL++ += l;
-			*outR++ += r;
+	while (numSamples) {
+		int blockSamples = (numSamples > SFZVOICE_RENDER_EFFECTSAMPLEBLOCK ? SFZVOICE_RENDER_EFFECTSAMPLEBLOCK : numSamples);
+		numSamples -= blockSamples;
+
+		if (dynamicLowpass) {
+			float fres = tmpInitialFilterFc + modlfo.level * tmpModLfoToFilterFc + modeg.level * tmpModEnvToFilterFc;
+			tmpLowpass.active = (fres <= 13500);
+			if (tmpLowpass.active) tmpLowpass.setup(SFZRegion::cents2Hertz(fres) / tmpSampleRate);
 			}
-		else
-			*outL++ += (l + r) * 0.5f;
 
-		// Next sample.
-		tmpSourceSamplePosition += pitchRatio;
-		if (tmpLoopStart < tmpLoopEnd && tmpSourceSamplePosition > tmpLoopEnd) {
-			tmpSourceSamplePosition = tmpLoopStart;
-			numLoops += 1;
-			}
+		if (dynamicPitchRatio)
+			pitchRatio = SFZRegion::timecents2Secs(pitchInputTimecents + modlfo.level * tmpModLfoToPitch + viblfo.level * tmpVibLfoToPitch + modeg.level * tmpModEnvToPitch) * pitchOutputFactor;
+
+		if (dynamicGain)
+			noteGain = Decibels::decibelsToGain(noteGainDB + (modlfo.level * tmpModLfoToVolume));
+
+		float gainMono = noteGain * ampeg.level, gainLeft = gainMono * panFactorLeft, gainRight = gainMono * panFactorRight;
 
 		// Update EG.
-		if (ampSegmentIsExponential)
-			ampegGain *= ampegSlope;
-		else
-			ampegGain += ampegSlope;
-		if (--samplesUntilNextAmpSegment < 0) {
-			ampeg.level = ampegGain;
-			ampeg.nextSegment();
-			ampegGain = ampeg.level;
-			ampegSlope = ampeg.slope;
-			samplesUntilNextAmpSegment = ampeg.samplesUntilNextSegment;
-			ampSegmentIsExponential = ampeg.segmentIsExponential;
+		ampeg.update(blockSamples);
+		if (updateModEg)
+			modeg.update(blockSamples);
+
+		// Update LFOs.
+		if (updateModLFO)
+			modlfo.process(blockSamples);
+		if (updateVibLFO)
+			viblfo.process(blockSamples);
+
+		while (blockSamples-- && tmpSourceSamplePosition < tmpSampleEnd) {
+			unsigned long pos = (int)tmpSourceSamplePosition, nextPos = pos + 1;
+			float alpha = (float)(tmpSourceSamplePosition - pos), invAlpha = 1.0f - alpha;
+			if (tmpLoopStart < tmpLoopEnd && nextPos > tmpLoopEnd)
+				nextPos = tmpLoopStart;
+
+			// Simple linear interpolation.
+			float l = (inL[pos] * invAlpha + inL[nextPos] * alpha);
+
+			//low pass filter
+			if (tmpLowpass.active)
+				l = tmpLowpass.process(l, tmpLowpass.Z1Left, tmpLowpass.Z2Left);
+
+			float r;
+			if (inR) {
+				r = (inR[pos] * invAlpha + inR[nextPos] * alpha);
+				if (tmpLowpass.active)
+					r = tmpLowpass.process(r, tmpLowpass.Z1Right, tmpLowpass.Z2Right);
+				}
+			else
+				r = l;
+
+			l *= gainLeft;
+			r *= gainRight;
+			// Shouldn't we dither here?
+
+			if (outR) {
+				*outL++ += l;
+				*outR++ += r;
+				}
+			else
+				*outL++ += (l + r) * 0.5f;
+
+			// Next sample.
+			tmpSourceSamplePosition += pitchRatio;
+			if (tmpLoopStart < tmpLoopEnd && tmpSourceSamplePosition > tmpLoopEnd) {
+				tmpSourceSamplePosition = tmpLoopStart;
+				numLoops += 1;
+				}
+
 			}
 
 		if (tmpSourceSamplePosition >= tmpSampleEnd || ampeg.isDone()) {
@@ -233,9 +344,9 @@ void SFZVoice::renderNextBlock(
 			}
 		}
 
-	this->sourceSamplePosition = tmpSourceSamplePosition;
-	ampeg.level = ampegGain;
-	ampeg.samplesUntilNextSegment = samplesUntilNextAmpSegment;
+	sourceSamplePosition = tmpSourceSamplePosition;
+	if (dynamicLowpass)
+		lowpass = tmpLowpass;
 }
 
 
@@ -307,11 +418,8 @@ void SFZVoice::calcPitchRatio()
 		else
 			adjustedPitch += wheel * region->bend_down / -100.0;
 		}
-	double targetFreq = noteHz(adjustedPitch);
-	double naturalFreq = MidiMessage::getMidiNoteInHertz(region->pitch_keycenter);
-	pitchRatio =
-		(targetFreq * region->sample->getSampleRate()) /
-		(naturalFreq * sampleRate);
+	pitchInputTimecents = adjustedPitch * 100.0;
+	pitchOutputFactor = region->sample->getSampleRate() / (SFZRegion::timecents2Secs(region->pitch_keycenter * 100.0) * sampleRate);
 }
 
 
@@ -319,15 +427,6 @@ void SFZVoice::killNote()
 {
 	region = NULL;
 	clearCurrentNote();
-}
-
-
-double SFZVoice::noteHz(double note, const double freqOfA)
-{
-	// Like MidiMessage::getMidiNoteInHertz(), but with a float note.
-	note -= 12 * 6 + 9;
-	// Now 0 = A
-	return freqOfA * pow(2.0, note / 12.0);
 }
 
 

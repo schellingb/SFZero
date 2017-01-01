@@ -10,9 +10,11 @@ class SFZSample;
 
 struct SFZEGParameters {
 	float	delay, start, attack, hold, decay, sustain, release;
+	float	keynumToHold, keynumToDecay;
 
 	void	clear();
 	void	clearMod();
+	void	sf2ToSFZ(bool sustainIsGain);
 	};
 
 class SFZRegion {
@@ -36,12 +38,12 @@ class SFZRegion {
 		void	sf2ToSFZ();
 		void	dump();
 
-		bool	matches(unsigned char note, unsigned char velocity, Trigger trigger) {
+		bool	matches(unsigned char note, unsigned char velocity, Trigger _trigger) {
 			return
 				note >= lokey && note <= hikey &&
 				velocity >= lovel && velocity <= hivel &&
-				(trigger == this->trigger ||
-				 (this->trigger == attack && (trigger == first || trigger == legato)));
+				(_trigger == trigger ||
+				 (trigger == attack && (_trigger == first || _trigger == legato)));
 			}
 
 		SFZSample* sample;
@@ -64,9 +66,17 @@ class SFZRegion {
 		float volume, pan;
 		float amp_veltrack;
 
-		SFZEGParameters	ampeg, ampeg_veltrack;
+		SFZEGParameters	ampeg, modeg, ampeg_veltrack;
+		int initialFilterQ, initialFilterFc;
+		int modEnvToPitch, modEnvToFilterFc;
+		float delayModLFO;
+		int freqModLFO, modLfoToPitch, modLfoToFilterFc, modLfoToVolume;
+		float delayVibLFO;
+		int freqVibLFO, vibLfoToPitch;
 
-		static float	timecents2Secs(short timecents);
+		static inline double timecents2Secs(double timecents) { return pow(2.0, timecents / 1200.0); }
+		static inline float timecents2Secs(float timecents) { return powf(2.0f, timecents / 1200.0f); }
+		static inline float cents2Hertz(float cents) { return 8.176f * powf(2.0f, cents / 1200.0f); }
 	};
 
 }

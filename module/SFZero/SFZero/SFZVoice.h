@@ -43,10 +43,10 @@ class JUCE_API SFZVoice : public juce::SynthesiserVoice {
 	protected:
 		SFZRegion*	region;
 		int       	curMidiNote, curPitchWheel;
-		double    	pitchRatio;
-		float     	noteGainLeft, noteGainRight;
+		double    	pitchInputTimecents, pitchOutputFactor;
 		double    	sourceSamplePosition;
-		SFZEG     	ampeg;
+		float     	noteGainDB, panFactorLeft, panFactorRight;
+		SFZEG     	ampeg, modeg;
 		unsigned long	sampleEnd;
 		unsigned long	loopStart, loopEnd;
 
@@ -56,7 +56,23 @@ class JUCE_API SFZVoice : public juce::SynthesiserVoice {
 
 		void	calcPitchRatio();
 		void	killNote();
-		double	noteHz(double note, const double freqOfA = 440.0);
+
+		// Low-pass filter.
+		struct SFZLowpass {
+			void setup(float Fc);
+			inline float process(double In, double& z1, double& z2);
+			double QInv, a0, a1, a2, b1, b2;
+			double Z1Left, Z2Left, Z1Right, Z2Right;
+			bool active;
+			} lowpass;
+
+		// Low Frequency Oscillators.
+		struct SFZLFO {
+			void setup(float delay, int freqCents, float sampleRate);
+			inline void process(int blockSamples);
+			long   samplesUntil;
+			float  level, delta;
+			} modlfo, viblfo;
 	};
 
 }
