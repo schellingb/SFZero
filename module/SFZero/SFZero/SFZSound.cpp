@@ -202,9 +202,9 @@ void SFZSound::dump()
 
 	if (unsupportedOpcodes.size() > 0) {
 		printf("Unused opcodes:\n");
-		for (HashMap<String,String>::Iterator i(unsupportedOpcodes); i.next();) {
+		for (HashMap<String,String>::Iterator it(unsupportedOpcodes); it.next();) {
 			char opcode[64];
-			i.getKey().copyToUTF8(opcode, 64);
+			it.getKey().copyToUTF8(opcode, 64);
 			printf("  %s\n", opcode);
 			}
 		printf("\n");
@@ -217,8 +217,8 @@ void SFZSound::dump()
 	printf("\n");
 
 	printf("Samples:\n");
-	for (HashMap<String,SFZSample*>::Iterator i(samples); i.next();)
-		i.getValue()->dump();
+	for (HashMap<String,SFZSample*>::Iterator it(samples); it.next();)
+		it.getValue()->dump();
 }
 
 
