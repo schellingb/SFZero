@@ -23,8 +23,6 @@ struct RIFFChunk {
 	void	Seek(InputStream* file);
 	void	SeekAfter(InputStream* file);
 	int64	End() { return start + size; }
-
-	String	ReadString(InputStream* file);
 	};
 
 

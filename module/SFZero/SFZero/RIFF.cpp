@@ -41,13 +41,5 @@ void RIFFChunk::SeekAfter(InputStream* file)
 }
 
 
-String RIFFChunk::ReadString(InputStream* file)
-{
-	char str[size];
-	file->read(str, size);
-	return String(str);
-}
-
-
 
 

@@ -41,7 +41,6 @@ class JUCE_API SFZVoice : public juce::SynthesiserVoice {
 		juce::String	infoString();
 
 	protected:
-		int       	trigger;
 		SFZRegion*	region;
 		int       	curMidiNote, curPitchWheel;
 		double    	pitchRatio;

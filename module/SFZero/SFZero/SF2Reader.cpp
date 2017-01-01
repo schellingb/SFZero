@@ -57,16 +57,16 @@ void SF2Reader::read()
 
 		// Zones.
 		//*** TODO: Handle global zone (modulators only).
-		int zoneEnd = phdr[1].presetBagNdx;
-		for (int whichZone = phdr->presetBagNdx; whichZone < zoneEnd; ++whichZone) {
-			SF2::pbag* pbag = &hydra.pbagItems[whichZone];
+		int presetZoneEnd = phdr[1].presetBagNdx;
+		for (int presetWhichZone = phdr->presetBagNdx; presetWhichZone < presetZoneEnd; ++presetWhichZone) {
+			SF2::pbag* pbag = &hydra.pbagItems[presetWhichZone];
 			SFZRegion presetRegion;
 			presetRegion.clearForRelativeSF2();
 
 			// Generators.
-			int genEnd = pbag[1].genNdx;
-			for (int whichGen = pbag->genNdx; whichGen < genEnd; ++whichGen) {
-				SF2::pgen* pgen = &hydra.pgenItems[whichGen];
+			int presetGenEnd = pbag[1].genNdx;
+			for (int presetWhichGen = pbag->genNdx; presetWhichGen < presetGenEnd; ++presetWhichGen) {
+				SF2::pgen* pgen = &hydra.pgenItems[presetWhichGen];
 
 				// Instrument.
 				if (pgen->genOper == SF2Generator::instrument) {
@@ -85,16 +85,16 @@ void SF2Reader::read()
 
 						SF2::inst* inst = &hydra.instItems[whichInst];
 						int firstZone = inst->instBagNdx;
-						int zoneEnd = inst[1].instBagNdx;
-						for (int whichZone = firstZone; whichZone < zoneEnd; ++whichZone) {
-							SF2::ibag* ibag = &hydra.ibagItems[whichZone];
+						int instZoneEnd = inst[1].instBagNdx;
+						for (int instWhichZone = firstZone; instWhichZone < instZoneEnd; ++instWhichZone) {
+							SF2::ibag* ibag = &hydra.ibagItems[instWhichZone];
 
 							// Generators.
 							SFZRegion zoneRegion = instRegion;
 							bool hadSampleID = false;
-							int genEnd = ibag[1].instGenNdx;
-							for (int whichGen = ibag->instGenNdx; whichGen < genEnd; ++whichGen) {
-								SF2::igen* igen = &hydra.igenItems[whichGen];
+							int instGenEnd = ibag[1].instGenNdx;
+							for (int instWhichGen = ibag->instGenNdx; instWhichGen < instGenEnd; ++instWhichGen) {
+								SF2::igen* igen = &hydra.igenItems[instWhichGen];
 								if (igen->genOper == SF2Generator::sampleID) {
 									int whichSample = igen->genAmount.wordAmount;
 									SF2::shdr* shdr = &hydra.shdrItems[whichSample];
@@ -128,7 +128,7 @@ void SF2Reader::read()
 								}
 
 							// Handle instrument's global zone.
-							if (whichZone == firstZone && !hadSampleID)
+							if (instWhichZone == firstZone && !hadSampleID)
 								instRegion = zoneRegion;
 
 							// Modulators.
@@ -217,7 +217,7 @@ AudioSampleBuffer* SF2Reader::readSamples(
 		for (; samplesToConvert > 0; --samplesToConvert) {
 			// If we ever need to compile for big-endian platforms, we'll need to
 			// byte-swap here.
-			*out++ = *in++ / 32767.0;
+			*out++ = *in++ / 32767.0f;
 			}
 
 		samplesLeft -= samplesToRead;
@@ -262,7 +262,7 @@ void SF2Reader::addGeneratorToRegion(
 			region->end += amount->shortAmount * 32768;
 			break;
 		case SF2Generator::pan:
-			region->pan = amount->shortAmount * (2.0 / 10.0);
+			region->pan = amount->shortAmount * (2.0f / 10.0f);
 			break;
 		case SF2Generator::delayVolEnv:
 			region->ampeg.delay = amount->shortAmount;
@@ -296,7 +296,7 @@ void SF2Reader::addGeneratorToRegion(
 		case SF2Generator::initialAttenuation:
 			// The spec says "initialAttenuation" is in centibels.  But everyone
 			// seems to treat it as millibels.
-			region->volume += -amount->shortAmount / 100.0;
+			region->volume += -amount->shortAmount / 100.0f;
 			break;
 		case SF2Generator::endloopAddrsCoarseOffset:
 			region->loop_end += amount->shortAmount * 32768;

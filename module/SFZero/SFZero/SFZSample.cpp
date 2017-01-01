@@ -18,8 +18,8 @@ bool SFZSample::load(AudioFormatManager* formatManager)
 	StringPairArray* metadata = &reader->metadataValues;
 	int numLoops = metadata->getValue("NumSampleLoops", "0").getIntValue();
 	if (numLoops > 0) {
-		loopStart = metadata->getValue("Loop0Start", "0").getLargeIntValue();
-		loopEnd = metadata->getValue("Loop0End", "0").getLargeIntValue();
+		loopStart = (unsigned long)metadata->getValue("Loop0Start", "0").getLargeIntValue();
+		loopEnd = (unsigned long)metadata->getValue("Loop0End", "0").getLargeIntValue();
 		}
 	delete reader;
 	return true;

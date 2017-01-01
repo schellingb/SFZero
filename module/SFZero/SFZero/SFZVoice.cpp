@@ -66,13 +66,13 @@ void SFZVoice::startNote(
 	double velocityGainDB = -20.0 * log10((127.0 * 127.0) / (velocity * velocity));
 	velocityGainDB *= region->amp_veltrack / 100.0;
 	noteGainDB += velocityGainDB;
-	noteGainLeft = noteGainRight = Decibels::decibelsToGain(noteGainDB);
+	noteGainLeft = noteGainRight = Decibels::decibelsToGain((float)noteGainDB);
 	// The SFZ spec is silent about the pan curve, but a 3dB pan law seems
 	// common.  This sqrt() curve matches what Dimension LE does; Alchemy Free
 	// seems closer to sin(adjustedPan * pi/2).
 	double adjustedPan = (region->pan + 100.0) / 200.0;
-	noteGainLeft *= sqrt(1.0 - adjustedPan);
-	noteGainRight *= sqrt(adjustedPan);
+	noteGainLeft *= (float)sqrt(1.0 - adjustedPan);
+	noteGainRight *= (float)sqrt(adjustedPan);
 	ampeg.startNote(
 		&region->ampeg, floatVelocity, getSampleRate(), &region->ampeg_veltrack);
 
@@ -172,22 +172,22 @@ void SFZVoice::renderNextBlock(
 
 	// Cache some values, to give them at least some chance of ending up in
 	// registers.
-	double sourceSamplePosition = this->sourceSamplePosition;
+	double tmpSourceSamplePosition = this->sourceSamplePosition;
 	float ampegGain = ampeg.level;
 	float ampegSlope = ampeg.slope;
 	long samplesUntilNextAmpSegment = ampeg.samplesUntilNextSegment;
 	bool ampSegmentIsExponential = ampeg.segmentIsExponential;
-	float loopStart = this->loopStart;
-	float loopEnd = this->loopEnd;
-	float sampleEnd = this->sampleEnd;
+	float tmpLoopStart = (float)this->loopStart;
+	float tmpLoopEnd = (float)this->loopEnd;
+	float tmpSampleEnd = (float)this->sampleEnd;
 
 	while (--numSamples >= 0) {
-		int pos = (int) sourceSamplePosition;
-		float alpha = (float) (sourceSamplePosition - pos);
+		int pos = (int) tmpSourceSamplePosition;
+		float alpha = (float) (tmpSourceSamplePosition - pos);
 		float invAlpha = 1.0f - alpha;
 		int nextPos = pos + 1;
-		if (loopStart < loopEnd && nextPos > loopEnd)
-			nextPos = loopStart;
+		if (tmpLoopStart < tmpLoopEnd && nextPos > tmpLoopEnd)
+			nextPos = (int)tmpLoopStart;
 
 		// Simple linear interpolation.
 		float l = (inL[pos] * invAlpha + inL[nextPos] * alpha);
@@ -207,9 +207,9 @@ void SFZVoice::renderNextBlock(
 			*outL++ += (l + r) * 0.5f;
 
 		// Next sample.
-		sourceSamplePosition += pitchRatio;
-		if (loopStart < loopEnd && sourceSamplePosition > loopEnd) {
-			sourceSamplePosition = loopStart;
+		tmpSourceSamplePosition += pitchRatio;
+		if (tmpLoopStart < tmpLoopEnd && tmpSourceSamplePosition > tmpLoopEnd) {
+			tmpSourceSamplePosition = tmpLoopStart;
 			numLoops += 1;
 			}
 
@@ -227,13 +227,13 @@ void SFZVoice::renderNextBlock(
 			ampSegmentIsExponential = ampeg.segmentIsExponential;
 			}
 
-		if (sourceSamplePosition >= sampleEnd || ampeg.isDone()) {
+		if (tmpSourceSamplePosition >= tmpSampleEnd || ampeg.isDone()) {
 			killNote();
 			break;
 			}
 		}
 
-	this->sourceSamplePosition = sourceSamplePosition;
+	this->sourceSamplePosition = tmpSourceSamplePosition;
 	ampeg.level = ampegGain;
 	ampeg.samplesUntilNextSegment = samplesUntilNextAmpSegment;
 }

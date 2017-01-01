@@ -35,7 +35,7 @@ void SFZReader::read(const char* text, unsigned int length)
 {
 	const char* p = text;
 	const char* end = text + length;
-	char c;
+	char c = '\0';
 
 	SFZRegion curGroup;
 	SFZRegion curRegion;
@@ -185,19 +185,19 @@ void SFZReader::read(const char* text, unsigned int length)
 					if (buildingRegion == NULL)
 						error("Setting a parameter outside a region or group");
 					else if (opcode == "lokey")
-						buildingRegion->lokey = keyValue(value);
+						buildingRegion->lokey = (unsigned char)keyValue(value);
 					else if (opcode == "hikey")
-						buildingRegion->hikey = keyValue(value);
+						buildingRegion->hikey = (unsigned char)keyValue(value);
 					else if (opcode == "key") {
 						buildingRegion->hikey =
-						buildingRegion->lokey =
+						buildingRegion->lokey = (unsigned char)(
 						buildingRegion->pitch_keycenter =
-							keyValue(value);
+							keyValue(value));
 						}
 					else if (opcode == "lovel")
-						buildingRegion->lovel = value.getIntValue();
+						buildingRegion->lovel = (unsigned char)value.getIntValue();
 					else if (opcode == "hivel")
-						buildingRegion->hivel = value.getIntValue();
+						buildingRegion->hivel = (unsigned char)value.getIntValue();
 					else if (opcode == "trigger")
 						buildingRegion->trigger = (SFZRegion::Trigger) triggerValue(value);
 					else if (opcode == "group")
@@ -207,7 +207,7 @@ void SFZReader::read(const char* text, unsigned int length)
 					else if (opcode == "offset")
 						buildingRegion->offset = (unsigned long) value.getLargeIntValue();
 					else if (opcode == "end") {
-						int64 end = (unsigned long) value.getLargeIntValue();
+						unsigned long end = (unsigned long) value.getLargeIntValue();
 						if (end < 0)
 							buildingRegion->negative_end = true;
 						else
