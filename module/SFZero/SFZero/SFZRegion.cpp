@@ -102,8 +102,9 @@ void SFZRegion::clearForRelativeSF2()
 {
 	clear();
 	pitch_keytrack = 0;
-	amp_veltrack = 0.0;
-	ampeg.sustain = 0.0;
+	amp_veltrack = 0.0f;
+	ampeg.sustain = 0.0f;
+	modeg.sustain = 0.0f;
 }
 
 
