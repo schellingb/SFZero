@@ -61,7 +61,7 @@ class JUCE_API SFZVoice : public juce::SynthesiserVoice {
 		struct SFZLowpass {
 			void setup(float Fc);
 			inline float process(double In, double& z1, double& z2);
-			double QInv, a0, a1, a2, b1, b2;
+			double QInv, a0, a1, b1, b2;
 			double Z1Left, Z2Left, Z1Right, Z2Right;
 			bool active;
 			} lowpass;

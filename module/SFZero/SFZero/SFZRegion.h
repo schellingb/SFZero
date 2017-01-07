@@ -1,6 +1,8 @@
 #ifndef SFZRegion_h
 #define SFZRegion_h
 
+#include <math.h>
+
 namespace SFZero {
 
 class SFZSample;
