@@ -67,6 +67,7 @@ void SFZRegion::clear()
 	ampeg.clear();
 	ampeg_veltrack.clearMod();
 	modeg.clear();
+	initialFilterFc = 0x7FFF;
 }
 
 
