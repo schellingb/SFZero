@@ -1,9 +1,5 @@
 #include "SFZeroAudioProcessor.h"
 #include "SFZeroEditor.h"
-#include "SFZSound.h"
-#include "SF2Sound.h"
-#include "SFZVoice.h"
-#include "SFZDebug.h"
 
 using namespace SFZero;
 

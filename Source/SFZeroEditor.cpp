@@ -1,7 +1,6 @@
 #include "SFZeroEditor.h"
 #include "SFZeroAudioProcessor.h"
-#include "SFZSound.h"
-#include "SFZDebug.h"
+
 #include <time.h>
 
 using namespace SFZero;
