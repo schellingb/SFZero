@@ -345,7 +345,7 @@ void SFZVoice::renderNextBlock(
 		}
 
 	sourceSamplePosition = tmpSourceSamplePosition;
-	if (dynamicLowpass)
+	if (tmpLowpass.active || dynamicLowpass)
 		lowpass = tmpLowpass;
 }
 
