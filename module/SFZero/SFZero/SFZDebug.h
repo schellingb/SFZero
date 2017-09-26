@@ -24,16 +24,16 @@ class LogFifo {
 		LogFifo();
 		~LogFifo();
 
-        void logMessage(const juce::String& message);
+		void logMessage(const juce::String& message);
 		void	relayMessages();
-        juce::String    nextMessage();
+		juce::String	nextMessage();
 		bool	hasMessage();
 
 	protected:
 		enum {
 			capacity = 512 * 1024,
 			};
-        juce::AbstractFifo    fifo;
+		juce::AbstractFifo	fifo;
 		char	buffer[capacity];
 	};
 

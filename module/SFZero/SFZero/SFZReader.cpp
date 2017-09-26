@@ -207,7 +207,7 @@ void SFZReader::read(const char* text, unsigned int length)
 					else if (opcode == "offset")
 						buildingRegion->offset = (unsigned long) value.getLargeIntValue();
 					else if (opcode == "end") {
-                        long end = (long) value.getLargeIntValue();
+						long end = (long) value.getLargeIntValue();
 						if (end < 0)
 							buildingRegion->negative_end = true;
 						else
