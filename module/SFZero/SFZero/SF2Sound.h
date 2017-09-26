@@ -8,21 +8,21 @@ namespace SFZero {
 
 class SF2Sound : public SFZSound {
 	public:
-		SF2Sound(const File& file);
+    SF2Sound(const juce::File& file);
 		~SF2Sound();
 
 		void	loadRegions();
 		void	loadSamples(
-			AudioFormatManager* formatManager,
-			double* progressVar = NULL, Thread* thread = NULL);
+                            juce::AudioFormatManager* formatManager,
+                            double* progressVar = NULL, juce::Thread* thread = NULL);
 
 		struct Preset {
-			String	name;
+            juce::String	name;
 			int    	bank;
 			int   	preset;
-			OwnedArray<SFZRegion>	regions;
+            juce::OwnedArray<SFZRegion>	regions;
 
-			Preset(String nameIn, int bankIn, int presetIn)
+            Preset(juce::String nameIn, int bankIn, int presetIn)
 				: name(nameIn), bank(bankIn), preset(presetIn) {}
 			~Preset() {}
 
@@ -33,16 +33,16 @@ class SF2Sound : public SFZSound {
 		void	addPreset(Preset* preset);
 
 		int	numSubsounds();
-		String	subsoundName(int whichSubsound);
+        juce::String    subsoundName(int whichSubsound);
 		void	useSubsound(int whichSubsound);
 		int 	selectedSubsound();
 
 		SFZSample*	sampleFor(unsigned long sampleRate);
-		void	setSamplesBuffer(AudioSampleBuffer* buffer);
+        void    setSamplesBuffer(juce::AudioSampleBuffer* buffer);
 
 	protected:
-		OwnedArray<Preset>	presets;
-		HashMap<int64, SFZSample*>	samplesByRate;
+        juce::OwnedArray<Preset>    presets;
+        juce::HashMap<juce::int64, SFZSample*>    samplesByRate;
 		int               	selectedPreset;
 	};
 
