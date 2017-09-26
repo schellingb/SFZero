@@ -1,7 +1,6 @@
 #include "SFZeroEditor.h"
 #include "SFZeroAudioProcessor.h"
-#include "SFZSound.h"
-#include "SFZDebug.h"
+
 #include <time.h>
 
 using namespace SFZero;
@@ -47,6 +46,7 @@ SFZeroEditor::SFZeroEditor(SFZeroAudioProcessor* ownerFilter)
 	addAndMakeVisible(&infoLabel);
 	infoLabel.setFont(labelFont);
 	infoLabel.setJustificationType(Justification::topLeft);
+    infoLabel.setColour(Label::textColourId, Colours::grey);
 	infoLabel.addClickListener(this);
 
 	addAndMakeVisible(&midiKeyboard);

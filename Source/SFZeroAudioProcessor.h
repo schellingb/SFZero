@@ -2,7 +2,6 @@
 #define __PLUGINPROCESSOR_H_7DD34D53__
 
 #include "../JuceLibraryCode/JuceHeader.h"
-#include "SFZSynth.h"
 
 namespace SFZero {
 	class SFZSound;

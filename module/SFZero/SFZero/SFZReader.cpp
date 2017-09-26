@@ -202,18 +202,18 @@ void SFZReader::read(const char* text, unsigned int length)
 						buildingRegion->trigger = (SFZRegion::Trigger) triggerValue(value);
 					else if (opcode == "group")
 						buildingRegion->group = (unsigned long) value.getLargeIntValue();
-					else if (opcode == "off_by")
+					else if (opcode == "off_by" || opcode == "offby")
 						buildingRegion->off_by = (unsigned long) value.getLargeIntValue();
 					else if (opcode == "offset")
 						buildingRegion->offset = (unsigned long) value.getLargeIntValue();
 					else if (opcode == "end") {
-						unsigned long end = (unsigned long) value.getLargeIntValue();
+                        long end = (long) value.getLargeIntValue();
 						if (end < 0)
 							buildingRegion->negative_end = true;
 						else
 							buildingRegion->end = end;
 						}
-					else if (opcode == "loop_mode") {
+					else if (opcode == "loop_mode" || opcode == "loopmode") {
 						bool modeIsSupported =
 							value == "no_loop" ||
 							value == "one_shot" ||
@@ -226,9 +226,9 @@ void SFZReader::read(const char* text, unsigned int length)
 							sound->addUnsupportedOpcode(fauxOpcode);
 							}
 						}
-					else if (opcode == "loop_start")
+					else if (opcode == "loop_start" || opcode == "loopstart")
 						buildingRegion->loop_start = (unsigned long) value.getLargeIntValue();
-					else if (opcode == "loop_end")
+					else if (opcode == "loop_end" || opcode == "loopend")
 						buildingRegion->loop_end = (unsigned long) value.getLargeIntValue();
 					else if (opcode == "transpose")
 						buildingRegion->transpose = value.getIntValue();
@@ -238,9 +238,9 @@ void SFZReader::read(const char* text, unsigned int length)
 						buildingRegion->pitch_keycenter = keyValue(value);
 					else if (opcode == "pitch_keytrack")
 						buildingRegion->pitch_keytrack = value.getIntValue();
-					else if (opcode == "bend_up")
+					else if (opcode == "bend_up" || opcode == "bendup")
 						buildingRegion->bend_up = value.getIntValue();
-					else if (opcode == "bend_down")
+					else if (opcode == "bend_down" || opcode == "benddown")
 						buildingRegion->bend_down = value.getIntValue();
 					else if (opcode == "volume")
 						buildingRegion->volume = value.getFloatValue();
