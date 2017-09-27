@@ -5,7 +5,7 @@ using namespace SFZero;
 
 #ifdef JUCE_DEBUG
 
-static LogFifo* fifo = NULL;
+static ScopedPointer<LogFifo> fifo;
 
 
 LogFifo::LogFifo()

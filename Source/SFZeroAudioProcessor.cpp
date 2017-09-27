@@ -1,8 +1,11 @@
 #include "SFZeroAudioProcessor.h"
 #include "SFZeroEditor.h"
 
-using namespace SFZero;
+#if JUCE_DEBUG
+#include "../module/SFZero/SFZero/SFZDebug.h"
+#endif
 
+using namespace SFZero;
 
 SFZeroAudioProcessor::SFZeroAudioProcessor()
 	: loadProgress(0.0), loadThread(this)
